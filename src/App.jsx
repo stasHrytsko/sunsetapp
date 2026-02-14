@@ -230,8 +230,8 @@ function ViewingWindow({ viewStart, viewEnd, sunset }) {
   );
 }
 
-// --- Combined Sticky Header: Calendar + Nav ---
-function StickyHeader({ forecast, selectedDay, onSelect, activeSection }) {
+// --- Combined Fixed Header: Calendar + Nav ---
+function FixedHeader({ forecast, selectedDay, onSelect, activeSection }) {
   const sections = [
     { id: "score", label: "Оценка" },
     { id: "time", label: "Время" },
@@ -241,7 +241,7 @@ function StickyHeader({ forecast, selectedDay, onSelect, activeSection }) {
   const scrollTo = (id) => {
     const el = document.getElementById(id);
     if (el) {
-      const offset = 140; // height of sticky header
+      const offset = 130;
       const top = el.getBoundingClientRect().top + window.scrollY - offset;
       window.scrollTo({ top, behavior: "smooth" });
     }
@@ -249,43 +249,45 @@ function StickyHeader({ forecast, selectedDay, onSelect, activeSection }) {
 
   return (
     <div style={{
-      position: "sticky", top: 0, zIndex: 10,
-      background: "rgba(15,12,26,0.92)", backdropFilter: "blur(16px)",
-      padding: "10px 0 8px",
-      marginLeft: -20, marginRight: -20, paddingLeft: 20, paddingRight: 20,
+      position: "fixed", top: 0, left: 0, right: 0, zIndex: 20,
+      background: "rgba(15,12,26,0.94)", backdropFilter: "blur(16px)",
+      WebkitBackdropFilter: "blur(16px)",
       borderBottom: "1px solid rgba(255,255,255,0.06)",
+      padding: "10px 0 8px",
     }}>
-      {/* Week calendar — compact */}
-      <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
-        {forecast.map((day, i) => {
-          const score = calcScore(day); const v = getVerdict(score, day); const active = i === selectedDay;
-          return (
-            <button key={i} onClick={() => onSelect(i)} style={{
-              flex: 1, background: active ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
-              border: active ? `1px solid ${v.color}44` : "1px solid rgba(255,255,255,0.05)",
-              borderRadius: 10, padding: "6px 2px", cursor: "pointer", transition: "all 0.2s ease",
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-            }}>
-              <span style={{ fontSize: 8, color: active ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 0.3 }}>{dayName(day.date, i)}</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: active ? "#fff" : "rgba(255,255,255,0.35)" }}>{day.date.getDate()}</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: v.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{score.total}</span>
-            </button>
-          );
-        })}
-      </div>
+      <div style={{ maxWidth: 420, margin: "0 auto", padding: "0 16px" }}>
+        {/* Week calendar — compact */}
+        <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
+          {forecast.map((day, i) => {
+            const score = calcScore(day); const v = getVerdict(score, day); const active = i === selectedDay;
+            return (
+              <button key={i} onClick={() => onSelect(i)} style={{
+                flex: 1, background: active ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
+                border: active ? `1px solid ${v.color}44` : "1px solid rgba(255,255,255,0.05)",
+                borderRadius: 10, padding: "6px 2px", cursor: "pointer", transition: "all 0.2s ease",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+              }}>
+                <span style={{ fontSize: 8, color: active ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 0.3 }}>{dayName(day.date, i)}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: active ? "#fff" : "rgba(255,255,255,0.35)" }}>{day.date.getDate()}</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: v.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{score.total}</span>
+              </button>
+            );
+          })}
+        </div>
 
-      {/* Nav tabs */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 5 }}>
-        {sections.map(s => (
-          <button key={s.id} onClick={() => scrollTo(s.id)} style={{
-            background: activeSection === s.id ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
-            border: activeSection === s.id ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 18, padding: "4px 12px", fontSize: 11, color: activeSection === s.id ? "#fff" : "rgba(255,255,255,0.35)",
-            cursor: "pointer", transition: "all 0.2s ease", fontFamily: "inherit", fontWeight: 500,
-          }}>
-            {s.label}
-          </button>
-        ))}
+        {/* Nav tabs */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 5 }}>
+          {sections.map(s => (
+            <button key={s.id} onClick={() => scrollTo(s.id)} style={{
+              background: activeSection === s.id ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
+              border: activeSection === s.id ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 18, padding: "4px 12px", fontSize: 11, color: activeSection === s.id ? "#fff" : "rgba(255,255,255,0.35)",
+              cursor: "pointer", transition: "all 0.2s ease", fontFamily: "inherit", fontWeight: 500,
+            }}>
+              {s.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -443,19 +445,11 @@ export default function SunsetApp() {
         .d1{animation-delay:.05s}.d2{animation-delay:.15s}.d3{animation-delay:.25s}.d4{animation-delay:.35s}.d5{animation-delay:.45s}.d6{animation-delay:.55s}
       `}</style>
 
+      <FixedHeader forecast={weekForecast} selectedDay={selectedDay} onSelect={setSelectedDay} activeSection={activeSection} />
+
       <div style={{ position: "fixed", top: "15%", left: "50%", transform: "translateX(-50%)", width: 300, height: 300, borderRadius: "50%", background: `radial-gradient(circle,${verdict.color}22 0%,transparent 70%)`, animation: "glow 4s ease-in-out infinite", pointerEvents: "none", zIndex: 0 }} />
 
-      <div style={{ maxWidth: 420, margin: "0 auto", padding: "0 20px 40px", position: "relative", zIndex: 1 }}>
-
-        <div className="fu d1" style={{ paddingTop: 44, marginBottom: 6, textAlign: "center" }}>
-          <div style={{ display: "inline-block", fontSize: 10, textTransform: "uppercase", letterSpacing: 3.5, color: "rgba(255,255,255,0.3)", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 8 }}>
-            Valencia · {now.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
-          </div>
-        </div>
-
-        <h1 className="fu d1" style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 30, fontWeight: 400, textAlign: "center", marginBottom: 24 }}>Закат сегодня</h1>
-
-        <div className="fu d2"><StickyHeader forecast={weekForecast} selectedDay={selectedDay} onSelect={setSelectedDay} activeSection={activeSection} /></div>
+      <div style={{ maxWidth: 420, margin: "0 auto", padding: "0 20px 40px", position: "relative", zIndex: 1, paddingTop: 120 }}>
 
         {/* SCORE section */}
         <div id="score">
