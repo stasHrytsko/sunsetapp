@@ -230,34 +230,8 @@ function ViewingWindow({ viewStart, viewEnd, sunset }) {
   );
 }
 
-function WeekCalendar({ forecast, selectedDay, onSelect }) {
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ display: "flex", gap: 4 }}>
-        {forecast.map((day, i) => {
-          const score = calcScore(day); const v = getVerdict(score, day); const active = i === selectedDay;
-          return (
-            <button key={i} onClick={() => onSelect(i)} style={{
-              flex: 1, background: active ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
-              border: active ? `1px solid ${v.color}44` : "1px solid rgba(255,255,255,0.05)",
-              borderRadius: 12, padding: "10px 2px", cursor: "pointer", transition: "all 0.25s ease",
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-              transform: active ? "translateY(-2px)" : "none",
-            }}>
-              <span style={{ fontSize: 9, color: active ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 0.3 }}>{dayName(day.date, i)}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: active ? "#fff" : "rgba(255,255,255,0.4)" }}>{day.date.getDate()}</span>
-              <span style={{ fontSize: 17, fontWeight: 700, color: v.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{score.total}</span>
-              <span style={{ fontSize: 11 }}>{v.emoji}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// --- Sticky Nav ---
-function StickyNav({ activeSection }) {
+// --- Combined Sticky Header: Calendar + Nav ---
+function StickyHeader({ forecast, selectedDay, onSelect, activeSection }) {
   const sections = [
     { id: "score", label: "Оценка" },
     { id: "time", label: "Время" },
@@ -265,25 +239,54 @@ function StickyNav({ activeSection }) {
     { id: "spots", label: "Места" },
   ];
   const scrollTo = (id) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const el = document.getElementById(id);
+    if (el) {
+      const offset = 140; // height of sticky header
+      const top = el.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top, behavior: "smooth" });
+    }
   };
+
   return (
     <div style={{
       position: "sticky", top: 0, zIndex: 10,
-      background: "rgba(15,12,26,0.85)", backdropFilter: "blur(12px)",
-      padding: "10px 0 8px", marginBottom: 16,
-      display: "flex", justifyContent: "center", gap: 6,
+      background: "rgba(15,12,26,0.92)", backdropFilter: "blur(16px)",
+      padding: "10px 0 8px",
+      marginLeft: -20, marginRight: -20, paddingLeft: 20, paddingRight: 20,
+      borderBottom: "1px solid rgba(255,255,255,0.06)",
     }}>
-      {sections.map(s => (
-        <button key={s.id} onClick={() => scrollTo(s.id)} style={{
-          background: activeSection === s.id ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
-          border: activeSection === s.id ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(255,255,255,0.06)",
-          borderRadius: 20, padding: "5px 14px", fontSize: 12, color: activeSection === s.id ? "#fff" : "rgba(255,255,255,0.4)",
-          cursor: "pointer", transition: "all 0.2s ease", fontFamily: "inherit", fontWeight: 500,
-        }}>
-          {s.label}
-        </button>
-      ))}
+      {/* Week calendar — compact */}
+      <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
+        {forecast.map((day, i) => {
+          const score = calcScore(day); const v = getVerdict(score, day); const active = i === selectedDay;
+          return (
+            <button key={i} onClick={() => onSelect(i)} style={{
+              flex: 1, background: active ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
+              border: active ? `1px solid ${v.color}44` : "1px solid rgba(255,255,255,0.05)",
+              borderRadius: 10, padding: "6px 2px", cursor: "pointer", transition: "all 0.2s ease",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+            }}>
+              <span style={{ fontSize: 8, color: active ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 0.3 }}>{dayName(day.date, i)}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: active ? "#fff" : "rgba(255,255,255,0.35)" }}>{day.date.getDate()}</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: v.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{score.total}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Nav tabs */}
+      <div style={{ display: "flex", justifyContent: "center", gap: 5 }}>
+        {sections.map(s => (
+          <button key={s.id} onClick={() => scrollTo(s.id)} style={{
+            background: activeSection === s.id ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
+            border: activeSection === s.id ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 18, padding: "4px 12px", fontSize: 11, color: activeSection === s.id ? "#fff" : "rgba(255,255,255,0.35)",
+            cursor: "pointer", transition: "all 0.2s ease", fontFamily: "inherit", fontWeight: 500,
+          }}>
+            {s.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -385,7 +388,7 @@ export default function SunsetApp() {
     const ids = ["score", "time", "factors", "spots"];
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(e => { if (e.isIntersecting) setActiveSection(e.target.id); });
-    }, { rootMargin: "-40% 0px -55% 0px" });
+    }, { rootMargin: "-30% 0px -55% 0px" });
     ids.forEach(id => { const el = document.getElementById(id); if (el) observer.observe(el); });
     return () => observer.disconnect();
   }, [weekForecast]);
@@ -452,10 +455,7 @@ export default function SunsetApp() {
 
         <h1 className="fu d1" style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 30, fontWeight: 400, textAlign: "center", marginBottom: 24 }}>Закат сегодня</h1>
 
-        <div className="fu d2"><WeekCalendar forecast={weekForecast} selectedDay={selectedDay} onSelect={setSelectedDay} /></div>
-
-        {/* Sticky Navigation */}
-        <StickyNav activeSection={activeSection} />
+        <div className="fu d2"><StickyHeader forecast={weekForecast} selectedDay={selectedDay} onSelect={setSelectedDay} activeSection={activeSection} /></div>
 
         {/* SCORE section */}
         <div id="score">
