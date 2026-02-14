@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 
 // ============================================================
 // SunCalc — minimal inline implementation
@@ -26,27 +26,22 @@ const SunCalc = (() => {
     const w = hourAngle(h, phi, dec), a = approxTransit(w, lw, n);
     return solarTransitJ(a, M, L);
   }
-
   function getTimes(date, lat, lng) {
     const lw = rad * -lng, phi = rad * lat, d = toDays(date);
     const n = julianCycle(d, lw), ds = approxTransit(0, lw, n);
-    const Mds = solarMeanAnomaly(ds + J2000 - J2000 + 0); // keep simple
     const M2 = solarMeanAnomaly(ds);
     const L = eclipticLongitude(M2), dec = declination(L, 0);
-    const Jnoon = solarTransitJ(ds, M2, L);
     const Jset = getSetJ(-0.833 * rad, lw, phi, dec, n, M2, L);
     const sunset = fromJulian(Jset);
     const goldenJ = getSetJ(6 * rad, lw, phi, dec, n, M2, L);
     const goldenHour = fromJulian(goldenJ);
     return { sunset, goldenHour };
   }
-
   function getPosition(date, lat, lng) {
     const lw = rad * -lng, phi = rad * lat, d = toDays(date);
     const c = sunCoords(d), H = rad * (280.16 + 360.9856235 * d) - lw - c.ra;
     return { azimuth: azimuthCalc(H, phi, c.dec) / rad + 180 };
   }
-
   return { getTimes, getPosition };
 })();
 
@@ -56,99 +51,54 @@ const SunCalc = (() => {
 const VALENCIA = { lat: 39.4699, lng: -0.3763 };
 
 // ============================================================
-// API fetching
+// API
 // ============================================================
 async function fetchWeatherData() {
   const { lat, lng } = VALENCIA;
-
   const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}`
     + `&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,visibility`
     + `&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high,relative_humidity_2m,visibility,wind_speed_10m,surface_pressure`
     + `&timezone=Europe/Madrid&forecast_days=7`;
-
   const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}`
-    + `&current=pm10,pm2_5`
-    + `&hourly=pm10`
-    + `&timezone=Europe/Madrid&forecast_days=7`;
-
+    + `&current=pm10,pm2_5&hourly=pm10&timezone=Europe/Madrid&forecast_days=7`;
   const [weatherRes, airRes] = await Promise.all([fetch(weatherUrl), fetch(airUrl)]);
-  const weather = await weatherRes.json();
-  const air = await airRes.json();
-
-  return { weather, air };
+  return { weather: await weatherRes.json(), air: await airRes.json() };
 }
 
-// Pick hourly data closest to sunset for each day
 function buildWeekForecast(weather, air) {
   const days = [];
-  const hourlyTime = weather.hourly.time; // array of "YYYY-MM-DDTHH:00" strings
+  const hourlyTime = weather.hourly.time;
   const airTime = air.hourly?.time || [];
-
   for (let d = 0; d < 7; d++) {
-    const date = new Date();
-    date.setDate(date.getDate() + d);
-    date.setHours(12, 0, 0, 0);
-
-    // Get sunset time for this day
+    const date = new Date(); date.setDate(date.getDate() + d); date.setHours(12, 0, 0, 0);
     const sun = SunCalc.getTimes(date, VALENCIA.lat, VALENCIA.lng);
     const sunsetHour = sun.sunset.getHours();
-
-    // Find the hourly index closest to sunset
     const targetDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const targetKey = `${targetDate}T${String(sunsetHour).padStart(2, '0')}:00`;
-
     let idx = hourlyTime.indexOf(targetKey);
-    if (idx === -1) {
-      // Fallback: find closest hour on this date
-      idx = hourlyTime.findIndex(t => t.startsWith(targetDate));
-      if (idx !== -1) idx = Math.min(idx + sunsetHour, hourlyTime.length - 1);
-    }
-
+    if (idx === -1) { idx = hourlyTime.findIndex(t => t.startsWith(targetDate)); if (idx !== -1) idx = Math.min(idx + sunsetHour, hourlyTime.length - 1); }
     if (idx === -1) continue;
-
-    // Find PM10 for same time
-    let pm10 = 15; // default
+    let pm10 = 15;
     const airIdx = airTime.indexOf(targetKey);
-    if (airIdx !== -1 && air.hourly?.pm10?.[airIdx] != null) {
-      pm10 = air.hourly.pm10[airIdx];
-    }
-
-    const conf = Math.max(40, 85 - d * 7); // confidence drops with forecast distance
-
+    if (airIdx !== -1 && air.hourly?.pm10?.[airIdx] != null) pm10 = air.hourly.pm10[airIdx];
     days.push({
-      date,
-      sunset: sun.sunset,
+      date, sunset: sun.sunset,
       goldenHour: SunCalc.getTimes(date, VALENCIA.lat, VALENCIA.lng).goldenHour,
       azimuth: Math.round(SunCalc.getPosition(sun.sunset, VALENCIA.lat, VALENCIA.lng).azimuth),
-      cloudLow: weather.hourly.cloud_cover_low[idx] ?? 0,
-      cloudMid: weather.hourly.cloud_cover_mid[idx] ?? 0,
-      cloudHigh: weather.hourly.cloud_cover_high[idx] ?? 0,
-      humidity: weather.hourly.relative_humidity_2m[idx] ?? 50,
-      visibility: weather.hourly.visibility[idx] ?? 10000,
-      windSpeed: weather.hourly.wind_speed_10m[idx] ?? 10,
-      pressure: weather.hourly.surface_pressure[idx] ?? 1013,
-      pm10,
-      conf,
+      cloudLow: weather.hourly.cloud_cover_low[idx] ?? 0, cloudMid: weather.hourly.cloud_cover_mid[idx] ?? 0,
+      cloudHigh: weather.hourly.cloud_cover_high[idx] ?? 0, humidity: weather.hourly.relative_humidity_2m[idx] ?? 50,
+      visibility: weather.hourly.visibility[idx] ?? 10000, windSpeed: weather.hourly.wind_speed_10m[idx] ?? 10,
+      pressure: weather.hourly.surface_pressure[idx] ?? 1013, pm10,
     });
   }
-
   return days;
 }
 
 function buildToday(weather, air) {
   const c = weather.current;
-  return {
-    temp: c.temperature_2m,
-    humidity: c.relative_humidity_2m,
-    pressure: c.surface_pressure,
-    windSpeed: c.wind_speed_10m,
-    cloudTotal: c.cloud_cover,
-    cloudLow: c.cloud_cover_low,
-    cloudMid: c.cloud_cover_mid,
-    cloudHigh: c.cloud_cover_high,
-    visibility: c.visibility,
-    pm10: air.current?.pm10 ?? 0,
-  };
+  return { temp: c.temperature_2m, humidity: c.relative_humidity_2m, pressure: c.surface_pressure,
+    windSpeed: c.wind_speed_10m, cloudTotal: c.cloud_cover, cloudLow: c.cloud_cover_low,
+    cloudMid: c.cloud_cover_mid, cloudHigh: c.cloud_cover_high, visibility: c.visibility, pm10: air.current?.pm10 ?? 0 };
 }
 
 // ============================================================
@@ -167,14 +117,12 @@ function calcScore(w) {
   let ps = w.pressure >= 1010 && w.pressure <= 1020 ? 80 : w.pressure < 1010 ? 65 : 50;
   let ds = w.pm10 >= 20 && w.pm10 <= 60 ? 90 : w.pm10 > 60 && w.pm10 <= 100 ? 70 : w.pm10 > 100 ? 50 : w.pm10 < 10 ? 25 : 30;
   const total = Math.round(cs * 0.35 + hs * 0.20 + vs * 0.15 + ws * 0.10 + ps * 0.10 + ds * 0.10);
-  return {
-    total: Math.min(100, Math.max(0, total)), factors: {
-      clouds: { score: cs, low: w.cloudLow, mid: w.cloudMid, high: w.cloudHigh },
-      humidity: { score: hs, value: w.humidity }, visibility: { score: vs, value: vk },
-      wind: { score: ws, value: w.windSpeed }, pressure: { score: ps, value: w.pressure },
-      dust: { score: ds, value: w.pm10 },
-    }
-  };
+  return { total: Math.min(100, Math.max(0, total)), factors: {
+    clouds: { score: cs, low: w.cloudLow, mid: w.cloudMid, high: w.cloudHigh },
+    humidity: { score: hs, value: w.humidity }, visibility: { score: vs, value: vk },
+    wind: { score: ws, value: w.windSpeed }, pressure: { score: ps, value: w.pressure },
+    dust: { score: ds, value: w.pm10 },
+  }};
 }
 
 function getVerdict(score, w) {
@@ -182,26 +130,22 @@ function getVerdict(score, w) {
   const pros = [], cons = [];
   if (f.clouds.high >= 20 && f.clouds.high <= 70) pros.push("высокие облака поймают свет");
   if (f.clouds.mid >= 20 && f.clouds.mid <= 60) pros.push("средние облака добавят глубину");
-  if (f.clouds.low >= 60) cons.push("низкие облака закроют солнце");
-  else if (f.clouds.low < 15) pros.push("горизонт чистый");
+  if (f.clouds.low >= 60) cons.push("низкие облака закроют солнце"); else if (f.clouds.low < 15) pros.push("горизонт чистый");
   if (f.humidity.value >= 55 && f.humidity.value <= 75) pros.push("влажность идеальная для рассеивания");
   else if (f.humidity.value > 85) cons.push("слишком влажно — мутная картинка");
   else if (f.humidity.value < 40) cons.push("сухой воздух — бледные цвета");
   if (f.visibility.value >= 8 && f.visibility.value <= 15) pros.push("мягкая дымка усилит краски");
   else if (f.visibility.value > 25) cons.push("слишком чистый воздух — мало рассеивания");
   else if (f.visibility.value < 5) cons.push("видимость плохая");
-  if (f.wind.value <= 10) pros.push("тихо — облака держат форму");
-  else if (f.wind.value > 15) cons.push("ветер разгонит облака");
+  if (f.wind.value <= 10) pros.push("тихо — облака держат форму"); else if (f.wind.value > 15) cons.push("ветер разгонит облака");
   if (w.pm10 >= 20 && w.pm10 <= 60) pros.push("лёгкая пыль усилит красные тона");
   if (w.pm10 > 60) pros.push("calima — будет пурпурно");
   if (w.pressure < 1010) pros.push("смена воздушных масс — драматичное небо");
-
   let emoji, action, color;
   if (t >= 81) { emoji = "🔥"; action = "Иди прямо сейчас"; color = "#FF6B35"; }
   else if (t >= 66) { emoji = "✨"; action = "Стоит выйти"; color = "#F7C948"; }
   else if (t >= 41) { emoji = "🌤"; action = "На твоё усмотрение"; color = "#88B7D5"; }
   else { emoji = "😴"; action = "Можно пропустить"; color = "#8B95A5"; }
-
   return { emoji, action, color, pros: pros.slice(0, 3), cons: cons.slice(0, 2) };
 }
 
@@ -253,23 +197,16 @@ function ScoreRing({ score, size = 180 }) {
   );
 }
 
-function VerdictBlock({ verdict, confidence }) {
-  const cc = confidence >= 75 ? "#4ade80" : confidence >= 55 ? "#fbbf24" : "#f87171";
-  const ct = confidence >= 75 ? "высокая" : confidence >= 55 ? "средняя" : "низкая";
+function VerdictBlock({ verdict }) {
   return (
     <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${verdict.color}20`, borderRadius: 16, padding: "16px 18px", marginBottom: 20 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <span style={{ fontSize: 22 }}>{verdict.emoji}</span>
         <span style={{ fontSize: 17, fontWeight: 700, color: verdict.color }}>{verdict.action}</span>
       </div>
-      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, marginBottom: 12 }}>
+      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
         {verdict.pros.length > 0 && <div style={{ marginBottom: verdict.cons.length > 0 ? 6 : 0 }}>{verdict.pros.map((p, i) => (<span key={i}><span style={{ color: "#4ade80", marginRight: 4 }}>+</span>{p}{i < verdict.pros.length - 1 && <span style={{ color: "rgba(255,255,255,0.15)", margin: "0 8px" }}>·</span>}</span>))}</div>}
         {verdict.cons.length > 0 && <div>{verdict.cons.map((c, i) => (<span key={i}><span style={{ color: "#f59e0b", marginRight: 4 }}>−</span>{c}{i < verdict.cons.length - 1 && <span style={{ color: "rgba(255,255,255,0.15)", margin: "0 8px" }}>·</span>}</span>))}</div>}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-        <div style={{ width: 6, height: 6, borderRadius: "50%", background: cc, boxShadow: `0 0 6px ${cc}66` }} />
-        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Уверенность прогноза:</span>
-        <span style={{ fontSize: 11, color: cc, fontWeight: 600 }}>{confidence}% — {ct}</span>
       </div>
     </div>
   );
@@ -311,13 +248,42 @@ function WeekCalendar({ forecast, selectedDay, onSelect }) {
               <span style={{ fontSize: 13, fontWeight: 600, color: active ? "#fff" : "rgba(255,255,255,0.4)" }}>{day.date.getDate()}</span>
               <span style={{ fontSize: 17, fontWeight: 700, color: v.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{score.total}</span>
               <span style={{ fontSize: 11 }}>{v.emoji}</span>
-              <div style={{ display: "flex", gap: 2, marginTop: 1 }}>
-                {[1, 2, 3].map(n => (<div key={n} style={{ width: 4, height: 4, borderRadius: 2, background: day.conf >= (n * 30) ? "rgba(74,222,128,0.6)" : "rgba(255,255,255,0.1)" }} />))}
-              </div>
             </button>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// --- Sticky Nav ---
+function StickyNav({ activeSection }) {
+  const sections = [
+    { id: "score", label: "Оценка" },
+    { id: "time", label: "Время" },
+    { id: "factors", label: "Факторы" },
+    { id: "spots", label: "Места" },
+  ];
+  const scrollTo = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  return (
+    <div style={{
+      position: "sticky", top: 0, zIndex: 10,
+      background: "rgba(15,12,26,0.85)", backdropFilter: "blur(12px)",
+      padding: "10px 0 8px", marginBottom: 16,
+      display: "flex", justifyContent: "center", gap: 6,
+    }}>
+      {sections.map(s => (
+        <button key={s.id} onClick={() => scrollTo(s.id)} style={{
+          background: activeSection === s.id ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
+          border: activeSection === s.id ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(255,255,255,0.06)",
+          borderRadius: 20, padding: "5px 14px", fontSize: 12, color: activeSection === s.id ? "#fff" : "rgba(255,255,255,0.4)",
+          cursor: "pointer", transition: "all 0.2s ease", fontFamily: "inherit", fontWeight: 500,
+        }}>
+          {s.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -410,14 +376,24 @@ export default function SunsetApp() {
   const [now, setNow] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeSection, setActiveSection] = useState("score");
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(t); }, []);
+
+  // Intersection observer for sticky nav highlighting
+  useEffect(() => {
+    const ids = ["score", "time", "factors", "spots"];
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) setActiveSection(e.target.id); });
+    }, { rootMargin: "-40% 0px -55% 0px" });
+    ids.forEach(id => { const el = document.getElementById(id); if (el) observer.observe(el); });
+    return () => observer.disconnect();
+  }, [weekForecast]);
 
   useEffect(() => {
     fetchWeatherData()
       .then(({ weather, air }) => {
         const week = buildWeekForecast(weather, air);
-        // Patch day 0 with current data for max accuracy
         if (week.length > 0) {
           const today = buildToday(weather, air);
           week[0] = { ...week[0], ...today, cloudLow: today.cloudLow, cloudMid: today.cloudMid, cloudHigh: today.cloudHigh };
@@ -425,39 +401,29 @@ export default function SunsetApp() {
         setWeekForecast(week);
         setLoading(false);
       })
-      .catch(err => {
-        console.error(err);
-        setError("Не удалось загрузить данные погоды. Проверь интернет.");
-        setLoading(false);
-      });
+      .catch(err => { console.error(err); setError("Не удалось загрузить данные погоды."); setLoading(false); });
   }, []);
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#0f0c1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, color: "#fff", fontFamily: "system-ui" }}>
-        <div style={{ fontSize: 40, animation: "pulse 1.5s infinite" }}>🌅</div>
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>Загружаю погоду для Валенсии...</div>
-        <style>{`@keyframes pulse{0%,100%{opacity:0.5}50%{opacity:1}}`}</style>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: "#0f0c1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, color: "#fff", fontFamily: "system-ui" }}>
+      <div style={{ fontSize: 40, animation: "pulse 1.5s infinite" }}>🌅</div>
+      <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>Загружаю погоду для Валенсии...</div>
+      <style>{`@keyframes pulse{0%,100%{opacity:0.5}50%{opacity:1}}`}</style>
+    </div>
+  );
 
-  if (error || !weekForecast || weekForecast.length === 0) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#0f0c1a", display: "flex", alignItems: "center", justifyContent: "center", color: "#d9534f", fontFamily: "system-ui", padding: 40, textAlign: "center" }}>
-        {error || "Нет данных"}
-      </div>
-    );
-  }
+  if (error || !weekForecast?.length) return (
+    <div style={{ minHeight: "100vh", background: "#0f0c1a", display: "flex", alignItems: "center", justifyContent: "center", color: "#d9534f", fontFamily: "system-ui", padding: 40, textAlign: "center" }}>
+      {error || "Нет данных"}
+    </div>
+  );
 
   const dayData = weekForecast[selectedDay];
   const score = calcScore(dayData);
   const verdict = getVerdict(score, dayData);
   const spots = getSpots(dayData);
-
   const viewStart = new Date(dayData.sunset.getTime() - 25 * 60000);
   const viewEnd = new Date(dayData.sunset.getTime() + 15 * 60000);
-
   const diff = dayData.sunset.getTime() - now.getTime();
   const timeLeft = selectedDay > 0 ? "—" : (diff > 0 ? (Math.floor(diff / 3600000) > 0 ? `${Math.floor(diff / 3600000)}ч ${Math.floor((diff % 3600000) / 60000)}мин` : `${Math.floor(diff / 60000)} мин`) : "уже был");
 
@@ -466,6 +432,7 @@ export default function SunsetApp() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0} body{margin:0;background:#0f0c1a}
+        html{scroll-behavior:smooth}
         button{font-family:inherit}
         @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
         @keyframes glow{0%,100%{filter:blur(40px) brightness(0.6)}50%{filter:blur(50px) brightness(0.9)}}
@@ -487,29 +454,37 @@ export default function SunsetApp() {
 
         <div className="fu d2"><WeekCalendar forecast={weekForecast} selectedDay={selectedDay} onSelect={setSelectedDay} /></div>
 
-        <div className="fu d3" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 16 }}>
-          <ScoreRing score={score.total} />
+        {/* Sticky Navigation */}
+        <StickyNav activeSection={activeSection} />
+
+        {/* SCORE section */}
+        <div id="score">
+          <div className="fu d3" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 16 }}>
+            <ScoreRing score={score.total} />
+          </div>
+          <div className="fu d3"><VerdictBlock verdict={verdict} /></div>
         </div>
 
-        <div className="fu d3"><VerdictBlock verdict={verdict} confidence={dayData.conf} /></div>
-
-        <div className="fu d4"><ViewingWindow viewStart={viewStart} viewEnd={viewEnd} sunset={dayData.sunset} /></div>
-
-        <div className="fu d4" style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "14px 8px", marginBottom: 28, display: "flex", justifyContent: "space-around" }}>
-          {[
-            { l: "Golden Hour", v: fmt(dayData.goldenHour), c: "#F7C948" },
-            { l: "Закат", v: fmt(dayData.sunset), c: "#FF6B35" },
-            { l: "Осталось", v: timeLeft, c: "rgba(255,255,255,0.75)" },
-            { l: "Азимут", v: `${dayData.azimuth}°`, c: "rgba(255,255,255,0.55)" },
-          ].map((x, i) => (
-            <div key={i} style={{ textAlign: "center", flex: 1 }}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 5, textTransform: "uppercase", letterSpacing: 1 }}>{x.l}</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: x.c, fontFamily: "'Playfair Display',Georgia,serif" }}>{x.v}</div>
-            </div>
-          ))}
+        {/* TIME section */}
+        <div id="time">
+          <div className="fu d4"><ViewingWindow viewStart={viewStart} viewEnd={viewEnd} sunset={dayData.sunset} /></div>
+          <div className="fu d4" style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "14px 8px", marginBottom: 28, display: "flex", justifyContent: "space-around" }}>
+            {[
+              { l: "Golden Hour", v: fmt(dayData.goldenHour), c: "#F7C948" },
+              { l: "Закат", v: fmt(dayData.sunset), c: "#FF6B35" },
+              { l: "Осталось", v: timeLeft, c: "rgba(255,255,255,0.75)" },
+              { l: "Азимут", v: `${dayData.azimuth}°`, c: "rgba(255,255,255,0.55)" },
+            ].map((x, i) => (
+              <div key={i} style={{ textAlign: "center", flex: 1 }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 5, textTransform: "uppercase", letterSpacing: 1 }}>{x.l}</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: x.c, fontFamily: "'Playfair Display',Georgia,serif" }}>{x.v}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="fu d5" style={{ marginBottom: 32 }}>
+        {/* FACTORS section */}
+        <div id="factors" className="fu d5" style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 16, fontWeight: 500, textTransform: "uppercase", letterSpacing: 1.5 }}>Что влияет на закат</h2>
           <CloudFactor clouds={score.factors.clouds} delay={300} />
           <FactorScale name="Влажность" icon="💧" value={score.factors.humidity.value} unit="%" min={20} max={100} idealMin={55} idealMax={75} hint="Капли воды преломляют свет → оранжевые и красные тона" delay={400} />
@@ -519,7 +494,8 @@ export default function SunsetApp() {
           <FactorScale name="Пыль PM10" icon="🏜" value={score.factors.dust.value} unit=" µg" min={0} max={120} idealMin={20} idealMax={60} hint="Сахарская пыль (calima) — усиливает красные и пурпурные оттенки" delay={800} />
         </div>
 
-        <div className="fu d6" style={{ marginBottom: 32 }}>
+        {/* SPOTS section */}
+        <div id="spots" className="fu d6" style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 16, fontWeight: 500, textTransform: "uppercase", letterSpacing: 1.5 }}>Куда идти</h2>
           {spots.map((s, i) => <SpotCard key={s.name} spot={s} index={i} />)}
         </div>
