@@ -253,7 +253,7 @@ function FixedHeader({ forecast, selectedDay, onSelect, activeSection }) {
       background: "rgba(15,12,26,0.94)", backdropFilter: "blur(16px)",
       WebkitBackdropFilter: "blur(16px)",
       borderBottom: "1px solid rgba(255,255,255,0.06)",
-      padding: "10px 0 8px",
+      padding: "env(safe-area-inset-top, 44px) 0 8px",
     }}>
       <div style={{ maxWidth: 420, margin: "0 auto", padding: "0 16px" }}>
         {/* Week calendar — compact */}
@@ -449,7 +449,7 @@ export default function SunsetApp() {
 
       <div style={{ position: "fixed", top: "15%", left: "50%", transform: "translateX(-50%)", width: 300, height: 300, borderRadius: "50%", background: `radial-gradient(circle,${verdict.color}22 0%,transparent 70%)`, animation: "glow 4s ease-in-out infinite", pointerEvents: "none", zIndex: 0 }} />
 
-      <div style={{ maxWidth: 420, margin: "0 auto", padding: "0 20px 40px", position: "relative", zIndex: 1, paddingTop: 120 }}>
+      <div style={{ maxWidth: 420, margin: "0 auto", padding: "0 20px 40px", position: "relative", zIndex: 1, paddingTop: 160 }}>
 
         {/* SCORE section */}
         <div id="score">
