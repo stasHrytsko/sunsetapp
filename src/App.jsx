@@ -99,7 +99,7 @@ function buildToday(weather, air) {
 // ============================================================
 function calcScore(w) {
   let cs = 0;
-  if (w.cloudHigh >= 20 && w.cloudHigh <= 70) cs += 50; else if (w.cloudHigh > 0 && w.cloudHigh < 20) cs += 25; else if (w.cloudHigh > 70) cs += 30;
+  if (w.cloudHigh >= 20 && w.cloudHigh <= 70) cs += 50; else if (w.cloudHigh > 0 && w.cloudHigh < 20) cs += 25; else if (w.cloudHigh > 70) cs += 45;
   if (w.cloudMid >= 20 && w.cloudMid <= 60) cs += 35; else if (w.cloudMid > 60) cs += 15;
   if (w.cloudLow < 30) cs += 15; else if (w.cloudLow < 60) cs += 5; else cs -= 10;
   cs = Math.max(0, Math.min(100, cs));
@@ -109,7 +109,7 @@ function calcScore(w) {
   const ws = w.windSpeed <= 10 ? 100 : w.windSpeed <= 15 ? 70 : w.windSpeed <= 25 ? 40 : 15;
   const ps = w.pressure >= 1010 && w.pressure <= 1020 ? 80 : w.pressure < 1010 ? 65 : 50;
   const ds = w.pm10 >= 20 && w.pm10 <= 60 ? 90 : w.pm10 > 60 && w.pm10 <= 100 ? 70 : w.pm10 > 100 ? 50 : w.pm10 < 10 ? 25 : 30;
-  const total = Math.round(cs * 0.35 + hs * 0.20 + vs * 0.15 + ws * 0.10 + ps * 0.10 + ds * 0.10);
+  const total = Math.round(cs * 0.35 + hs * 0.20 + vs * 0.05 + ws * 0.10 + ps * 0.10 + ds * 0.10);
   return { total: Math.min(100, Math.max(0, total)), factors: {
     clouds: { score: cs, low: w.cloudLow, mid: w.cloudMid, high: w.cloudHigh },
     humidity: { score: hs, value: w.humidity }, visibility: { score: vs, value: vk },
