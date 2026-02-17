@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function FactorScale({ name, icon, value, unit, min, max, idealMin, idealMax, hint, delay }) {
+export default function FactorScale({ name, icon, value, unit, min, max, idealMin, idealMax, hint, delay, onInfo }) {
   const [vis, setVis] = useState(false);
   useEffect(() => { const t = setTimeout(() => setVis(true), delay); return () => clearTimeout(t); }, [delay]);
   const range = max - min, pos = Math.max(0, Math.min(100, ((value - min) / range) * 100));
@@ -9,7 +9,7 @@ export default function FactorScale({ name, icon, value, unit, min, max, idealMi
   return (
     <div style={{ marginBottom: 14, opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(12px)", transition: "all 0.5s", background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "12px 16px 10px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
-        <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{icon} {name}</span>
+        <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{icon} {name}{onInfo && <button onClick={onInfo} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", padding: "0 0 0 6px", verticalAlign: "baseline" }}>ℹ️</button>}</span>
         <span style={{ fontSize: 14, fontWeight: 700, color: mc, fontFamily: "monospace" }}>{typeof value === "number" && value % 1 !== 0 ? value.toFixed(1) : value}{unit}</span>
       </div>
       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 8, lineHeight: 1.3 }}>{hint}</div>
