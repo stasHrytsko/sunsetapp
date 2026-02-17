@@ -6,7 +6,7 @@ export default function CloudFactor({ clouds, delay }) {
   const layers = [
     { name: "Высокие (cirrus)", val: clouds.high, min: 0, max: 100, idealMin: 20, idealMax: 70, good: clouds.high >= 20 && clouds.high <= 70, hint: "Ловят свет → яркие краски" },
     { name: "Средние", val: clouds.mid, min: 0, max: 100, idealMin: 20, idealMax: 60, good: clouds.mid >= 20 && clouds.mid <= 60, hint: "Добавляют глубину цвета" },
-    { name: "Низкие", val: clouds.low, min: 0, max: 100, idealMin: 0, idealMax: 30, good: clouds.low < 30, hint: "Блокируют солнце — меньше = лучше" },
+    { name: "Низкие", val: clouds.low, min: 0, max: 100, idealMin: 0, idealMax: 30, good: clouds.low < 30, hint: "Блокируют солнце — меньше = лучше", idealLabel: "0% — идеал" },
   ];
   return (
     <div style={{ marginBottom: 14, opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(12px)", transition: "all 0.5s", background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "12px 16px 10px" }}>
@@ -28,7 +28,7 @@ export default function CloudFactor({ clouds, delay }) {
               <div style={{ position: "absolute", top: 0, left: vis ? `${pos}%` : "0%", transform: "translateX(-50%)", width: 14, height: 14, borderRadius: "50%", background: mc, boxShadow: `0 0 6px ${mc}44`, transition: "left 1s ease-out" }} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, color: "rgba(255,255,255,0.15)" }}>
-              <span>0%</span><span style={{ color: "rgba(74,222,128,0.25)" }}>{l.idealMin}–{l.idealMax}% идеал</span><span>100%</span>
+              <span>0%</span><span style={{ color: "rgba(74,222,128,0.25)" }}>{l.idealLabel || `${l.idealMin}–${l.idealMax}% идеал`}</span><span>100%</span>
             </div>
           </div>
         );

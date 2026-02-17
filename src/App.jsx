@@ -85,7 +85,10 @@ export default function SunsetApp() {
   const score = calcScore(dayData);
   const verdict = getVerdict(score, dayData);
   const confidence = calcConfidence(dayData.sunset, now, dayData.cloudHours, selectedDay);
-  const sunsetType = detectSunsetType(dayData);
+  const rawSunsetType = detectSunsetType(dayData);
+  const sunsetType = score.total <= 50
+    ? { type: "normal", name: "Обычный закат", emoji: "🌅", description: "", confidence: rawSunsetType.confidence }
+    : rawSunsetType;
   const rankedSpots = rankSpots(spots, dayData, userLoc?.lat, userLoc?.lng, sunsetType?.type);
 
   return (
@@ -123,9 +126,31 @@ export default function SunsetApp() {
           <h2 style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 14, fontWeight: 500, textTransform: "uppercase", letterSpacing: 1.5 }}>Что влияет на закат</h2>
           <CloudFactor clouds={score.factors.clouds} delay={200} />
           <FactorScale name="Влажность" icon="💧" value={score.factors.humidity.value} unit="%" min={20} max={100} idealMin={55} idealMax={75} hint="Капли воды преломляют свет → тёплые тона" delay={300} />
-          <FactorScale name="Видимость" icon="👁" value={score.factors.visibility.value} unit=" км" min={0} max={40} idealMin={8} idealMax={15} hint="Лёгкая дымка рассеивает свет. Слишком чисто = бледно" delay={400} />
+          <FactorScale name="Видимость" icon="👁" value={score.factors.visibility.value} unit=" км" min={0} max={Math.max(Math.ceil(score.factors.visibility.value), 80)} idealMin={10} idealMax={20} hint="Лёгкая дымка рассеивает свет. Слишком чисто = бледно" delay={400} />
           <FactorScale name="Ветер" icon="💨" value={score.factors.wind.value} unit=" км/ч" min={0} max={40} idealMin={0} idealMax={10} hint="Слабый ветер — облака держат форму" delay={500} />
-          <FactorScale name="Давление" icon="📊" value={score.factors.pressure.value} unit="" min={990} max={1040} idealMin={1010} idealMax={1020} hint="Смена давления = смена воздушных масс" delay={600} />
+          {(() => {
+            const pVal = score.factors.pressure.value;
+            const trendMap = {
+              stable: { label: "стабильное", icon: "↔", color: "#4ade80" },
+              rising: { label: "растёт", icon: "↑", color: "#f59e0b" },
+              falling: { label: "падает", icon: "↓", color: "#f59e0b" },
+              rising_after_drop: { label: "растёт после падения", icon: "↗", color: "#FF6B35" },
+            };
+            const t = trendMap[dayData.pressureTrend] || trendMap.stable;
+            return (
+              <div style={{ marginBottom: 14, background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "12px 16px 10px", opacity: 1 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
+                  <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>📊 Давление</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: t.color, fontFamily: "monospace" }}>{typeof pVal === "number" && pVal % 1 !== 0 ? pVal.toFixed(1) : pVal} hPa</span>
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 8, lineHeight: 1.3 }}>Динамика давления важнее абсолютного значения</div>
+                <div style={{ fontSize: 14, color: t.color, fontWeight: 600 }}>
+                  {t.label} {t.icon}
+                  {dayData.pressureTrend === "rising_after_drop" && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 6 }}>(фронт прошёл)</span>}
+                </div>
+              </div>
+            );
+          })()}
           <FactorScale name="Пыль PM10" icon="🏜" value={score.factors.dust.value} unit=" µg" min={0} max={120} idealMin={20} idealMax={60} hint="Сахарская пыль (calima) — усиливает красные тона" delay={700} />
         </div>
 
