@@ -16,6 +16,8 @@ import FactorScale from "./components/FactorScale";
 import SpotCard from "./components/SpotCard";
 import AddSpotForm from "./components/AddSpotForm";
 import SunsetTypeBlock from "./components/SunsetTypeBlock";
+import DetailPopup from "./components/DetailPopup";
+import { PARAMETER_DETAILS } from "./config/parameterDetails";
 
 export default function SunsetApp() {
   const [weekForecast, setWeekForecast] = useState(null);
@@ -26,6 +28,7 @@ export default function SunsetApp() {
   const [activeSection, setActiveSection] = useState("score");
   const [spots, setSpots] = useState(loadSpots);
   const [userLoc, setUserLoc] = useState(null);
+  const [detailKey, setDetailKey] = useState(null);
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(t); }, []);
 
@@ -124,10 +127,10 @@ export default function SunsetApp() {
         {/* FACTORS */}
         <div id="factors" style={{ marginBottom: 28 }}>
           <h2 style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 14, fontWeight: 500, textTransform: "uppercase", letterSpacing: 1.5 }}>Что влияет на закат</h2>
-          <CloudFactor clouds={score.factors.clouds} delay={200} />
-          <FactorScale name="Влажность" icon="💧" value={score.factors.humidity.value} unit="%" min={20} max={100} idealMin={55} idealMax={75} hint="Капли воды преломляют свет → тёплые тона" delay={300} />
-          <FactorScale name="Видимость" icon="👁" value={score.factors.visibility.value} unit=" км" min={0} max={Math.max(Math.ceil(score.factors.visibility.value), 80)} idealMin={10} idealMax={20} hint="Лёгкая дымка рассеивает свет. Слишком чисто = бледно" delay={400} />
-          <FactorScale name="Ветер" icon="💨" value={score.factors.wind.value} unit=" км/ч" min={0} max={40} idealMin={0} idealMax={10} hint="Слабый ветер — облака держат форму" delay={500} />
+          <CloudFactor clouds={score.factors.clouds} delay={200} onInfo={setDetailKey} />
+          <FactorScale name="Влажность" icon="💧" value={score.factors.humidity.value} unit="%" min={20} max={100} idealMin={55} idealMax={75} hint="Капли воды преломляют свет → тёплые тона" delay={300} onInfo={() => setDetailKey("humidity")} />
+          <FactorScale name="Видимость" icon="👁" value={score.factors.visibility.value} unit=" км" min={0} max={Math.max(Math.ceil(score.factors.visibility.value), 80)} idealMin={10} idealMax={20} hint="Лёгкая дымка рассеивает свет. Слишком чисто = бледно" delay={400} onInfo={() => setDetailKey("visibility")} />
+          <FactorScale name="Ветер" icon="💨" value={score.factors.wind.value} unit=" км/ч" min={0} max={40} idealMin={0} idealMax={10} hint="Слабый ветер — облака держат форму" delay={500} onInfo={() => setDetailKey("wind")} />
           {(() => {
             const pVal = score.factors.pressure.value;
             const trendMap = {
@@ -140,7 +143,7 @@ export default function SunsetApp() {
             return (
               <div style={{ marginBottom: 14, background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "12px 16px 10px", opacity: 1 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
-                  <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>📊 Давление</span>
+                  <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>📊 Давление<button onClick={() => setDetailKey("pressure")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", padding: "0 0 0 6px", verticalAlign: "baseline" }}>ℹ️</button></span>
                   <span style={{ fontSize: 14, fontWeight: 700, color: t.color, fontFamily: "monospace" }}>{typeof pVal === "number" && pVal % 1 !== 0 ? pVal.toFixed(1) : pVal} hPa</span>
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 8, lineHeight: 1.3 }}>Динамика давления важнее абсолютного значения</div>
@@ -151,7 +154,7 @@ export default function SunsetApp() {
               </div>
             );
           })()}
-          <FactorScale name="Пыль PM10" icon="🏜" value={score.factors.dust.value} unit=" µg" min={0} max={120} idealMin={20} idealMax={60} hint="Сахарская пыль (calima) — усиливает красные тона" delay={700} />
+          <FactorScale name="Пыль PM10" icon="🏜" value={score.factors.dust.value} unit=" µg" min={0} max={120} idealMin={20} idealMax={60} hint="Сахарская пыль (calima) — усиливает красные тона" delay={700} onInfo={() => setDetailKey("dust")} />
         </div>
 
         {/* SPOTS */}
@@ -166,6 +169,8 @@ export default function SunsetApp() {
           Open-Meteo API · SunCalc · Valencia
         </div>
       </div>
+
+      {detailKey && <DetailPopup detail={PARAMETER_DETAILS[detailKey]} onClose={() => setDetailKey(null)} />}
     </div>
   );
 }

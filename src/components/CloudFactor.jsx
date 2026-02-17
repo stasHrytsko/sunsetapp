@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 
-export default function CloudFactor({ clouds, delay }) {
+export default function CloudFactor({ clouds, delay, onInfo }) {
   const [vis, setVis] = useState(false);
   useEffect(() => { const t = setTimeout(() => setVis(true), delay); return () => clearTimeout(t); }, [delay]);
   const layers = [
-    { name: "Высокие (cirrus)", val: clouds.high, min: 0, max: 100, idealMin: 20, idealMax: 70, good: clouds.high >= 20 && clouds.high <= 70, hint: "Ловят свет → яркие краски" },
-    { name: "Средние", val: clouds.mid, min: 0, max: 100, idealMin: 20, idealMax: 60, good: clouds.mid >= 20 && clouds.mid <= 60, hint: "Добавляют глубину цвета" },
-    { name: "Низкие", val: clouds.low, min: 0, max: 100, idealMin: 0, idealMax: 30, good: clouds.low < 30, hint: "Блокируют солнце — меньше = лучше", idealLabel: "0% — идеал" },
+    { name: "Высокие (cirrus)", val: clouds.high, min: 0, max: 100, idealMin: 20, idealMax: 70, good: clouds.high >= 20 && clouds.high <= 70, hint: "Ловят свет → яркие краски", detailKey: "clouds_high" },
+    { name: "Средние", val: clouds.mid, min: 0, max: 100, idealMin: 20, idealMax: 60, good: clouds.mid >= 20 && clouds.mid <= 60, hint: "Добавляют глубину цвета", detailKey: "clouds_mid" },
+    { name: "Низкие", val: clouds.low, min: 0, max: 100, idealMin: 0, idealMax: 30, good: clouds.low < 30, hint: "Блокируют солнце — меньше = лучше", idealLabel: "0% — идеал", detailKey: "clouds_low" },
   ];
   return (
     <div style={{ marginBottom: 14, opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(12px)", transition: "all 0.5s", background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "12px 16px 10px" }}>
@@ -19,7 +19,7 @@ export default function CloudFactor({ clouds, delay }) {
         return (
           <div key={i} style={{ marginBottom: i < 2 ? 10 : 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{l.name}</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{l.name}{onInfo && <button onClick={() => onInfo(l.detailKey)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", padding: "0 0 0 4px", verticalAlign: "baseline" }}>ℹ️</button>}</span>
               <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "monospace", color: mc }}>{l.val}%</span>
             </div>
             <div style={{ position: "relative", height: 14, marginBottom: 2 }}>
