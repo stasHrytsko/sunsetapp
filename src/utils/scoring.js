@@ -42,25 +42,27 @@ export function calcConfidence(sunset, now, cloudHours, dayIndex) {
 
 export function getVerdict(score, w) {
   const t = score.total, f = score.factors, pros = [], cons = [];
-  if (f.clouds.high >= 20 && f.clouds.high <= 70) pros.push("высокие облака поймают свет");
-  if (f.clouds.mid >= 20 && f.clouds.mid <= 60) pros.push("средние облака добавят глубину");
-  if (f.clouds.low >= 60) cons.push("низкие облака закроют солнце"); else if (f.clouds.low < 15) pros.push("горизонт чистый");
-  if (f.humidity.value >= 55 && f.humidity.value <= 75) pros.push("влажность идеальна для рассеивания");
-  else if (f.humidity.value > 85) cons.push("слишком влажно — мутно");
-  else if (f.humidity.value < 40) cons.push("сухой воздух — бледные цвета");
-  if (f.visibility.value >= 8 && f.visibility.value <= 15) pros.push("мягкая дымка усилит краски");
-  else if (f.visibility.value > 25) cons.push("слишком чистый воздух — мало рассеивания");
-  else if (f.visibility.value < 5) cons.push("плохая видимость");
-  if (f.wind.value <= 10) pros.push("тихо — облака держат форму"); else if (f.wind.value > 15) cons.push("ветер разгонит облака");
-  if (w.pm10 >= 20 && w.pm10 <= 60) pros.push("лёгкая пыль усилит красные тона");
-  if (w.pm10 > 60) pros.push("calima — будет пурпурно");
-  if (w.pressure < 1010) pros.push("смена воздушных масс — драматичное небо");
+  const totalCloud = f.clouds.low + f.clouds.mid + f.clouds.high;
+
+  // Pros — in priority order (max 2)
+  if (f.clouds.mid >= 20 && f.clouds.mid <= 55 || f.clouds.high > 40) pros.push("облака создадут объём и текстуру");
+  if (f.humidity.value >= 55 && f.humidity.value <= 75) pros.push("влажность в идеале — сочные краски");
+  if (f.clouds.low < 10) pros.push("горизонт чистый");
+  if (f.wind.value <= 10 && totalCloud > 10) pros.push("тихо — облака держат форму");
+  if (w.pm10 >= 10 && w.pm10 <= 35) pros.push("лёгкая пыль добавит тёплые тона");
+
+  // Cons — in priority order (max 1)
+  if (f.clouds.low > 20) cons.push("низкие облака могут закрыть горизонт");
+  if (f.visibility.value > 40 && totalCloud < 20) cons.push("слишком чистый воздух — мало рассеивания");
+  if (f.humidity.value < 50) cons.push("влажность ниже идеала — цвета будут бледнее");
+  if (w.pm10 > 60) cons.push("сильная пыль — небо будет мутным");
+
   let emoji, action, color;
   if (t >= 81) { emoji = "\u{1F525}"; action = "Иди прямо сейчас"; color = "#FF6B35"; }
   else if (t >= 66) { emoji = "\u2728"; action = "Стоит выйти"; color = "#F7C948"; }
   else if (t >= 41) { emoji = "\u{1F324}"; action = "На твоё усмотрение"; color = "#88B7D5"; }
   else { emoji = "\u{1F634}"; action = "Можно пропустить"; color = "#8B95A5"; }
-  return { emoji, action, color, pros: pros.slice(0, 3), cons: cons.slice(0, 2) };
+  return { emoji, action, color, pros: pros.slice(0, 2), cons: cons.slice(0, 1) };
 }
 
 export function scoreColor(s) {
