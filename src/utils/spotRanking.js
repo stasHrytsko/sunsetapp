@@ -4,13 +4,29 @@ function distanceKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export function rankSpots(allSpots, w, userLat, userLng) {
+// Sunset type -> preferred spot types (high-weight bonus)
+const TYPE_SPOT_BONUS = {
+  pink_fire:       { lake: 35 },
+  dramatic_sheep:  { beach: 30 },
+  blood_sun:       { beach: 25 },
+  clean_gradient:  { tower: 30 },
+  breakthrough:    { lake: 30, beach: 25 },
+};
+
+export function rankSpots(allSpots, w, userLat, userLng, sunsetTypeKey) {
+  const typeBonus = (sunsetTypeKey && TYPE_SPOT_BONUS[sunsetTypeKey]) || {};
+
   return allSpots.map(s => {
     let b = 0;
+    // Existing weather-based logic
     if (w.cloudLow < 30 && s.type === "beach") b += 20;
     if ((w.cloudMid > 20 || w.cloudHigh > 20) && s.type === "lake") b += 25;
     if (w.windSpeed > 15 && s.type === "tower") b += 20;
     if (s.type === "beach" || s.type === "lake") b += 10;
+
+    // Sunset type bonus
+    if (typeBonus[s.type]) b += typeBonus[s.type];
+
     const km = (userLat && userLng) ? distanceKm(userLat, userLng, s.lat, s.lng) : null;
     return { ...s, bonus: b, km };
   }).sort((a, b) => b.bonus - a.bonus);

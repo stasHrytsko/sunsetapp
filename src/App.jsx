@@ -4,6 +4,7 @@ import { fetchWeatherData, buildWeekForecast, buildToday } from "./api/weather";
 import { loadSpots, saveSpots } from "./utils/storage";
 import { calcScore, calcConfidence, getVerdict } from "./utils/scoring";
 import { rankSpots } from "./utils/spotRanking";
+import { detectSunsetType } from "./utils/sunsetTypes";
 
 import FixedHeader from "./components/FixedHeader";
 import ScoreRing from "./components/ScoreRing";
@@ -14,6 +15,7 @@ import CloudFactor from "./components/CloudFactor";
 import FactorScale from "./components/FactorScale";
 import SpotCard from "./components/SpotCard";
 import AddSpotForm from "./components/AddSpotForm";
+import SunsetTypeBlock from "./components/SunsetTypeBlock";
 
 export default function SunsetApp() {
   const [weekForecast, setWeekForecast] = useState(null);
@@ -83,7 +85,8 @@ export default function SunsetApp() {
   const score = calcScore(dayData);
   const verdict = getVerdict(score, dayData);
   const confidence = calcConfidence(dayData.sunset, now, dayData.cloudHours, selectedDay);
-  const rankedSpots = rankSpots(spots, dayData, userLoc?.lat, userLoc?.lng);
+  const sunsetType = detectSunsetType(dayData);
+  const rankedSpots = rankSpots(spots, dayData, userLoc?.lat, userLoc?.lng, sunsetType?.type);
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(170deg,#0f0c1a 0%,#1a1230 20%,#2a1740 40%,#3d1d4a 55%,#4d2245 68%,#3a1835 85%,#1a0f22 100%)", fontFamily: "'Segoe UI',system-ui,-apple-system,sans-serif", color: "#fff", overflowX: "hidden" }}>
@@ -105,6 +108,7 @@ export default function SunsetApp() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 14 }}>
             <ScoreRing score={score.total} />
           </div>
+          <SunsetTypeBlock sunsetType={sunsetType} />
           <VerdictBlock verdict={verdict} confidence={confidence} />
         </div>
 

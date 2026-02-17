@@ -1,5 +1,6 @@
 import { calcScore, getVerdict } from "../utils/scoring";
-import { dayName, dayEmoji } from "../utils/formatters";
+import { dayName } from "../utils/formatters";
+import { detectSunsetType } from "../utils/sunsetTypes";
 
 export default function FixedHeader({ forecast, selectedDay, onSelect, activeSection, onNavClick }) {
   const sections = [
@@ -19,7 +20,7 @@ export default function FixedHeader({ forecast, selectedDay, onSelect, activeSec
         {/* Calendar */}
         <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
           {forecast.map((day, i) => {
-            const sc = calcScore(day), v = getVerdict(sc, day), active = i === selectedDay;
+            const sc = calcScore(day), v = getVerdict(sc, day), st = detectSunsetType(day), active = i === selectedDay;
             return (
               <button key={i} onClick={() => onSelect(i)} style={{
                 flex: 1, background: active ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
@@ -30,7 +31,7 @@ export default function FixedHeader({ forecast, selectedDay, onSelect, activeSec
                 <span style={{ fontSize: 9, color: active ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.25)", textTransform: "uppercase" }}>{dayName(day.date, i)}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: active ? "#fff" : "rgba(255,255,255,0.35)" }}>{day.date.getDate()}</span>
                 <span style={{ fontSize: 16, fontWeight: 700, color: v.color, fontFamily: "'Playfair Display',Georgia,serif" }}>{sc.total}</span>
-                <span style={{ fontSize: 10 }}>{dayEmoji(sc.total)}</span>
+                <span style={{ fontSize: 10 }}>{st.emoji}</span>
               </button>
             );
           })}
