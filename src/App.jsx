@@ -172,6 +172,14 @@ export default function SunsetApp() {
                   {t.label} {t.icon}
                   {dayData.pressureTrend === "rising_after_drop" && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 6 }}>(фронт прошёл)</span>}
                 </div>
+                {(() => {
+                  const devHigh = normDev != null && Math.abs(normDev) > 10;
+                  const sharpD24 = d24 != null && Math.abs(d24) > 6;
+                  if (!devHigh && !sharpD24) return null;
+                  if (devHigh && sharpD24) return <div style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>⚠️ {normDev > 0 ? "Высокое" : "Низкое"} давление + резкий перепад</div>;
+                  if (devHigh) return <div style={{ fontSize: 11, color: "#f59e0b", marginTop: 6 }}>⚠️ Давление {normDev > 0 ? "выше" : "ниже"} нормы</div>;
+                  return <div style={{ fontSize: 11, color: "#f59e0b", marginTop: 6 }}>⚠️ Резкое изменение за сутки</div>;
+                })()}
               </div>
             );
           })()}
