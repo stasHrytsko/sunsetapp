@@ -3,7 +3,7 @@ import { VALENCIA } from "../config/locations";
 
 export async function fetchWeatherData() {
   const { lat, lng } = VALENCIA;
-  const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,visibility&hourly=cloud_cover_low,cloud_cover_mid,cloud_cover_high,relative_humidity_2m,visibility,wind_speed_10m,surface_pressure,pressure_msl&timezone=Europe/Madrid&forecast_days=7&past_days=1`;
+  const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,visibility&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,relative_humidity_2m,visibility,wind_speed_10m,surface_pressure,pressure_msl&timezone=Europe/Madrid&forecast_days=7&past_days=1`;
   const aUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=pm10,pm2_5&hourly=pm10&timezone=Europe/Madrid&forecast_days=7`;
   const [wR, aR] = await Promise.all([fetch(wUrl), fetch(aUrl)]);
   return { weather: await wR.json(), air: await aR.json() };
@@ -60,6 +60,7 @@ export function buildWeekForecast(weather, air) {
     days.push({
       date, sunset: sun.sunset, goldenHour: sun.goldenHour,
       azimuth: Math.round(SunCalc.getPosition(sun.sunset, VALENCIA.lat, VALENCIA.lng).azimuth),
+      cloudTotal: weather.hourly.cloud_cover?.[idx] ?? 0,
       cloudLow: weather.hourly.cloud_cover_low[idx] ?? 0, cloudMid: weather.hourly.cloud_cover_mid[idx] ?? 0,
       cloudHigh: weather.hourly.cloud_cover_high[idx] ?? 0, humidity: weather.hourly.relative_humidity_2m[idx] ?? 50,
       visibility: weather.hourly.visibility[idx] ?? 10000, windSpeed: weather.hourly.wind_speed_10m[idx] ?? 10,
@@ -73,6 +74,6 @@ export function buildWeekForecast(weather, air) {
 export function buildToday(weather, air) {
   const c = weather.current;
   return { humidity: c.relative_humidity_2m, pressure: c.surface_pressure, windSpeed: c.wind_speed_10m,
-    cloudLow: c.cloud_cover_low, cloudMid: c.cloud_cover_mid, cloudHigh: c.cloud_cover_high,
+    cloudTotal: c.cloud_cover, cloudLow: c.cloud_cover_low, cloudMid: c.cloud_cover_mid, cloudHigh: c.cloud_cover_high,
     visibility: c.visibility, pm10: air.current?.pm10 ?? 0 };
 }

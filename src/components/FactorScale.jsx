@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function FactorScale({ name, icon, value, unit, min, max, idealMin, idealMax, hint, delay, onInfo }) {
+export default function FactorScale({ name, icon, value, unit, min, max, idealMin, idealMax, hint, interpretation, rawLabel, delay, onInfo }) {
   const [vis, setVis] = useState(false);
   useEffect(() => { const t = setTimeout(() => setVis(true), delay); return () => clearTimeout(t); }, [delay]);
   const range = max - min, pos = Math.max(0, Math.min(100, ((value - min) / range) * 100));
@@ -12,7 +12,8 @@ export default function FactorScale({ name, icon, value, unit, min, max, idealMi
         <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{icon} {name}{onInfo && <button onClick={onInfo} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", padding: "0 0 0 6px", verticalAlign: "baseline" }}>ℹ️</button>}</span>
         <span style={{ fontSize: 14, fontWeight: 700, color: mc, fontFamily: "monospace" }}>{typeof value === "number" && value % 1 !== 0 ? value.toFixed(1) : value}{unit}</span>
       </div>
-      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 8, lineHeight: 1.3 }}>{hint}</div>
+      {rawLabel && <div style={{ fontFamily: "monospace", fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 4 }}>{rawLabel}</div>}
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 8, lineHeight: 1.3 }}>{interpretation ? `→ ${interpretation}` : hint}</div>
       <div style={{ position: "relative", height: 18, marginBottom: 3 }}>
         <div style={{ position: "absolute", top: 7, left: 0, right: 0, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.08)" }} />
         <div style={{ position: "absolute", top: 5, height: 8, borderRadius: 4, left: `${iS}%`, width: `${iW}%`, background: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.12)" }} />
