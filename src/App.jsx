@@ -134,32 +134,41 @@ export default function SunsetApp() {
           {(() => {
             const pVal = score.factors.pressure.value;
             const trendMap = {
-              stable: { label: "стабильное", icon: "↔", color: "#4ade80" },
-              rising: { label: "растёт", icon: "↑", color: "#f59e0b" },
-              falling: { label: "падает", icon: "↓", color: "#f59e0b" },
-              rising_after_drop: { label: "растёт после падения", icon: "↗", color: "#FF6B35" },
+              stable: { label: "стабильное", icon: "↔" },
+              rising: { label: "растёт", icon: "↑" },
+              falling: { label: "падает", icon: "↓" },
+              rising_after_drop: { label: "растёт после падения", icon: "↗" },
             };
             const t = trendMap[dayData.pressureTrend] || trendMap.stable;
             const deltaArrow = (v) => v == null ? null : Math.abs(v) <= 1 ? "→" : v > 0 ? "↑" : "↓";
             const fmtDelta = (v) => v == null ? "—" : `${v > 0 ? "+" : ""}${v}`;
+            const deltaColor = (v, thresholds) => { const a = Math.abs(v); return a <= thresholds[0] ? "#4ade80" : a <= thresholds[1] ? "#f59e0b" : "#ef4444"; };
             const d12 = dayData.pressureDelta12h, d24 = dayData.pressureDelta24h, f6 = dayData.pressureForecast6h;
+            const normDev = typeof pVal === "number" ? Math.round((pVal - 1013) * 10) / 10 : null;
+            const normColor = normDev != null ? deltaColor(normDev, [7, 12]) : "rgba(255,255,255,0.55)";
+            const trendColor = d24 != null ? deltaColor(d24, [3, 6]) : "#4ade80";
             return (
               <div style={{ marginBottom: 14, background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "12px 16px 10px", opacity: 1 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
                   <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>📊 Давление<button onClick={() => setDetailKey("pressure")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", padding: "0 0 0 6px", verticalAlign: "baseline" }}>ℹ️</button></span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: t.color, fontFamily: "monospace" }}>{typeof pVal === "number" && pVal % 1 !== 0 ? pVal.toFixed(1) : pVal} hPa</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: trendColor, fontFamily: "monospace" }}>{typeof pVal === "number" && pVal % 1 !== 0 ? pVal.toFixed(1) : pVal} hPa</span>
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 8, lineHeight: 1.3 }}>Динамика давления важнее абсолютного значения</div>
-                <div style={{ display: "flex", gap: 10, marginBottom: 6, fontFamily: "monospace", fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
-                  {d12 != null && <span>{deltaArrow(d12)} {fmtDelta(d12)} hPa / 12ч</span>}
-                  {d24 != null && <span>{deltaArrow(d24)} {fmtDelta(d24)} hPa / 24ч</span>}
+                <div style={{ display: "flex", gap: 10, marginBottom: 6, fontFamily: "monospace", fontSize: 12 }}>
+                  {d12 != null && <span style={{ color: deltaColor(d12, [3, 6]) }}>{deltaArrow(d12)} {fmtDelta(d12)} hPa / 12ч</span>}
+                  {d24 != null && <span style={{ color: deltaColor(d24, [3, 6]) }}>{deltaArrow(d24)} {fmtDelta(d24)} hPa / 24ч</span>}
                 </div>
                 {f6 != null && (
-                  <div style={{ fontSize: 12, fontFamily: "monospace", color: "rgba(255,255,255,0.55)", marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, fontFamily: "monospace", color: deltaColor(f6, [2, 4]), marginBottom: 6 }}>
                     Прогноз 6ч: {deltaArrow(f6)} {fmtDelta(f6)} hPa {Math.abs(f6) <= 1 ? "(стабильно)" : f6 > 0 ? "(рост)" : "(падение)"}
                   </div>
                 )}
-                <div style={{ fontSize: 14, color: t.color, fontWeight: 600 }}>
+                {normDev != null && (
+                  <div style={{ fontSize: 11, fontFamily: "monospace", color: normColor, marginBottom: 6 }}>
+                    Норма: 1013 hPa · Сейчас {normDev > 0 ? "+" : ""}{normDev} hPa {normDev > 0 ? "выше" : normDev < 0 ? "ниже" : "норма"}
+                  </div>
+                )}
+                <div style={{ fontSize: 14, color: trendColor, fontWeight: 600 }}>
                   {t.label} {t.icon}
                   {dayData.pressureTrend === "rising_after_drop" && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 6 }}>(фронт прошёл)</span>}
                 </div>
