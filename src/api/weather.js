@@ -38,8 +38,8 @@ export function buildWeekForecast(weather, air) {
     if (ai !== -1 && air.hourly?.pm10?.[ai] != null) pm10 = air.hourly.pm10[ai];
     const cloudHours = [-1, 0, 1].map(o => { const i = idx + o; return (i >= 0 && i < ht.length) ? (weather.hourly.cloud_cover_high[i] ?? 0) + (weather.hourly.cloud_cover_mid[i] ?? 0) : null; }).filter(v => v !== null);
 
-    // Pressure trend: only for today (day 0), needs 12h of history
-    let pressureTrend = null;
+    // Pressure trend & deltas: only for today (day 0), needs past data
+    let pressureTrend = null, pressureDelta12h = null, pressureDelta24h = null, pressureForecast6h = null;
     if (d === 0 && weather.hourly.pressure_msl) {
       const now = new Date();
       const nowTd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -50,6 +50,11 @@ export function buildWeekForecast(weather, air) {
         const slice = weather.hourly.pressure_msl.slice(nowIdx - 12, nowIdx + 1);
         pressureTrend = getPressureTrend(slice);
       }
+      const sp = weather.hourly.surface_pressure;
+      const nowP = sp[nowIdx];
+      if (nowP != null && nowIdx >= 12 && sp[nowIdx - 12] != null) pressureDelta12h = Math.round((nowP - sp[nowIdx - 12]) * 10) / 10;
+      if (nowP != null && nowIdx >= 24 && sp[nowIdx - 24] != null) pressureDelta24h = Math.round((nowP - sp[nowIdx - 24]) * 10) / 10;
+      if (nowP != null && nowIdx + 6 < sp.length && sp[nowIdx + 6] != null) pressureForecast6h = Math.round((sp[nowIdx + 6] - nowP) * 10) / 10;
     }
 
     days.push({
@@ -58,7 +63,8 @@ export function buildWeekForecast(weather, air) {
       cloudLow: weather.hourly.cloud_cover_low[idx] ?? 0, cloudMid: weather.hourly.cloud_cover_mid[idx] ?? 0,
       cloudHigh: weather.hourly.cloud_cover_high[idx] ?? 0, humidity: weather.hourly.relative_humidity_2m[idx] ?? 50,
       visibility: weather.hourly.visibility[idx] ?? 10000, windSpeed: weather.hourly.wind_speed_10m[idx] ?? 10,
-      pressure: weather.hourly.surface_pressure[idx] ?? 1013, pm10, cloudHours, pressureTrend,
+      pressure: weather.hourly.surface_pressure[idx] ?? 1013, pm10, cloudHours,
+      pressureTrend, pressureDelta12h, pressureDelta24h, pressureForecast6h,
     });
   }
   return days;
