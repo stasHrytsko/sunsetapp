@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 
-export default function CloudFactor({ clouds, delay, onInfo }) {
+export default function CloudFactor({ clouds, cloudTotal, delay, onInfo }) {
   const [vis, setVis] = useState(false);
   useEffect(() => { const t = setTimeout(() => setVis(true), delay); return () => clearTimeout(t); }, [delay]);
+  const layerSum = clouds.low + clouds.mid + clouds.high;
+  const hasDiscrepancy = layerSum === 0 && cloudTotal > 10;
   const layers = [
     { name: "Высокие (cirrus)", val: clouds.high, min: 0, max: 100, idealMin: 20, idealMax: 70, good: clouds.high >= 20 && clouds.high <= 70, hint: "Ловят свет → яркие краски", detailKey: "clouds_high" },
     { name: "Средние", val: clouds.mid, min: 0, max: 100, idealMin: 20, idealMax: 60, good: clouds.mid >= 20 && clouds.mid <= 60, hint: "Добавляют глубину цвета", detailKey: "clouds_mid" },
@@ -11,7 +13,15 @@ export default function CloudFactor({ clouds, delay, onInfo }) {
   return (
     <div style={{ marginBottom: 14, opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(12px)", transition: "all 0.5s", background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "12px 16px 10px" }}>
       <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, marginBottom: 2 }}>☁️ Облачность</div>
-      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 10, lineHeight: 1.3 }}>Высокие и средние рассеивают свет → тёплые тона. Низкие — закрывают.</div>
+      <div style={{ fontFamily: "monospace", fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 4 }}>
+        {cloudTotal != null ? `${cloudTotal}% total` : ""} | {clouds.low}% low / {clouds.mid}% mid / {clouds.high}% high
+      </div>
+      {hasDiscrepancy && (
+        <div style={{ fontSize: 11, color: "#f59e0b", marginBottom: 4 }}>⚠️ Слои показывают 0%, но общая облачность {cloudTotal}%</div>
+      )}
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 10, lineHeight: 1.3 }}>
+        → {clouds.high >= 20 && clouds.high <= 70 ? "Высокие cirrus — хорошо для заката" : clouds.low > 30 ? "Низкие облака могут закрыть горизонт" : layerSum === 0 && (cloudTotal == null || cloudTotal <= 10) ? "Чистое небо — мало рассеивания" : "Высокие и средние рассеивают свет → тёплые тона. Низкие — закрывают."}
+      </div>
       {layers.map((l, i) => {
         const pos = Math.max(0, Math.min(100, (l.val / 100) * 100));
         const iS = (l.idealMin / 100) * 100, iW = ((l.idealMax - l.idealMin) / 100) * 100;
